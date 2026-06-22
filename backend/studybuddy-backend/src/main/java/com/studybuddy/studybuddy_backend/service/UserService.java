@@ -21,13 +21,17 @@ public class UserService {
 
     public UserResponse getMyProfile(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException("User not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new AppException(
+                        "Your session is no longer valid. Please sign in again.",
+                        HttpStatus.UNAUTHORIZED));
         return mapToResponse(user);
     }
 
     public UserResponse updateMyProfile(UUID userId, UpdateProfileRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException("User not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new AppException(
+                        "Your session is no longer valid. Please sign in again.",
+                        HttpStatus.UNAUTHORIZED));
 
         if (request.getName() != null) user.setName(request.getName());
         if (request.getBio() != null) user.setBio(request.getBio());

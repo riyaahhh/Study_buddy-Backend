@@ -9,10 +9,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.http.HttpStatus;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import lombok.RequiredArgsConstructor;
+
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+private final JwtAuthFilter jwtAuthFilter;
 
 @Bean
 public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -22,7 +27,8 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         )
         .authorizeHttpRequests(auth -> auth
-            .anyRequest().permitAll()
+            .requestMatchers("/api/auth/**", "/error").permitAll()
+            .anyRequest().authenticated()
         )
         .exceptionHandling(ex -> ex
             .authenticationEntryPoint((request, response, authException) -> {
@@ -35,7 +41,8 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
                 response.setContentType("application/json");
                 response.getWriter().write("{\"error\": \"Access denied\"}");
             })
-        );
+        )
+        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
     return http.build();
 }
 

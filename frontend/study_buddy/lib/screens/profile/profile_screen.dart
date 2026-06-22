@@ -52,7 +52,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
     if (confirm == true && mounted) {
-      await context.read<AuthViewModel>().logout();
+      final authViewModel = context.read<AuthViewModel>();
+      await authViewModel.logout();
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -93,7 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
       body: Consumer<UserViewModel>(
         builder: (context, vm, _) {
-          if (vm.isLoading) {
+          if (vm.isLoading && vm.user == null) {
             return const Center(
               child: CircularProgressIndicator(
                 color: AppColors.primary,
@@ -106,10 +108,12 @@ class _ProfileScreenState extends State<ProfileScreen>
           if (user == null) {
             return AppEmptyState(
               icon: Icons.person_outline_rounded,
-              title: 'Profile not found',
-              subtitle: 'Pull down to refresh.',
+              title: vm.errorStatusCode == 404
+                  ? 'Profile not found'
+                  : 'Unable to load profile',
+              subtitle: vm.error ?? 'Check your connection and try again.',
               buttonLabel: 'Retry',
-              onButton: () => vm.fetchMyProfile(),
+              onButton: () => vm.fetchMyProfile(forceRefresh: true),
             );
           }
 
@@ -117,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             color: AppColors.primary,
             onRefresh: () async {
               await Future.wait([
-                vm.fetchMyProfile(),
+                vm.fetchMyProfile(forceRefresh: true),
                 context
                     .read<GamificationViewModel>()
                     .fetchGamification(forceRefresh: true),
@@ -348,8 +352,10 @@ class _GamificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const allBadges = [
       _Badge('Bronze Scholar', Icons.school_rounded, Color(0xFFB45309)),
-      _Badge('Silver Scholar', Icons.workspace_premium_rounded, Color(0xFF64748B)),
-      _Badge('Placement Warrior', Icons.military_tech_rounded, AppColors.warning),
+      _Badge(
+          'Silver Scholar', Icons.workspace_premium_rounded, Color(0xFF64748B)),
+      _Badge(
+          'Placement Warrior', Icons.military_tech_rounded, AppColors.warning),
     ];
 
     return Container(
@@ -402,12 +408,12 @@ class _GamificationCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: unlocked
-                          ? badge.color.withOpacity(0.1)
+                          ? badge.color.withValues(alpha: 0.1)
                           : AppColors.surfaceAlt,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: unlocked
-                            ? badge.color.withOpacity(0.35)
+                            ? badge.color.withValues(alpha: 0.35)
                             : AppColors.border,
                       ),
                     ),
@@ -533,7 +539,7 @@ class _ReliabilityCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _color.withOpacity(0.1),
+                  color: _color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -558,7 +564,7 @@ class _ReliabilityCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: score / 100,
               minHeight: 6,
-              backgroundColor: _color.withOpacity(0.12),
+              backgroundColor: _color.withValues(alpha: 0.12),
               valueColor: AlwaysStoppedAnimation<Color>(_color),
             ),
           ),

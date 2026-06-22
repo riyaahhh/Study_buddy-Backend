@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
+import io.jsonwebtoken.JwtException;
 
 @Component
 @RequiredArgsConstructor
@@ -45,7 +46,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         // 5. extract userId from token
-        UUID userId = jwtUtil.extractUserId(token);
+        UUID userId;
+        try {
+            userId = jwtUtil.extractUserId(token);
+        } catch (IllegalArgumentException | JwtException ex) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // 6. tell Spring Security this user is authenticated
         UsernamePasswordAuthenticationToken authentication =

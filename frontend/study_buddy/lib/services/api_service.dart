@@ -13,6 +13,7 @@ class ApiService {
   // simple in-memory cache
   static final Map<String, dynamic> _cache = {};
   static final Map<String, DateTime> _cacheTime = {};
+  static Future<Map<String, dynamic>>? _profileRequest;
   static const Duration _cacheDuration = Duration(minutes: 5);
 
   static bool _isCacheValid(String key) {
@@ -66,9 +67,15 @@ class ApiService {
 
   static Future<Map<String, String>> authHeaders() async {
     final token = await getToken();
+    if (token == null || token.trim().isEmpty) {
+      throw const ApiException(
+        'Your session has expired. Please sign in again.',
+        statusCode: 401,
+      );
+    }
     return {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
+      'Authorization': 'Bearer ${token.trim()}',
     };
   }
 
@@ -122,21 +129,46 @@ class ApiService {
     if (!forceRefresh && _isCacheValid(cacheKey)) {
       return _cache[cacheKey];
     }
+
+    // Home and Profile are initialized together. Reuse the same request instead
+    // of making two calls while the backend is waking up.
+    final pending = _profileRequest;
+    if (pending != null) return pending;
+
+    final request = _loadMyProfile(cacheKey);
+    _profileRequest = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_profileRequest, request)) _profileRequest = null;
+    }
+  }
+
+  static Future<Map<String, dynamic>> _loadMyProfile(String cacheKey) async {
     final response = await http
         .get(Uri.parse('$baseUrl/api/users/me'), headers: await authHeaders())
         .timeout(_timeout);
-    final decoded = jsonDecode(response.body);
+
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } catch (_) {
+      decoded = null;
+    }
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message =
           decoded is Map<String, dynamic> ? decoded['error']?.toString() : null;
-      throw ApiException(message ?? 'Could not load profile.');
+      throw ApiException(
+        message ?? 'Could not load profile.',
+        statusCode: response.statusCode,
+      );
     }
     if (decoded is! Map<String, dynamic>) {
       throw const ApiException('Invalid profile response from server.');
     }
-    final data = decoded;
-    _setCache(cacheKey, data);
-    return data;
+    _setCache(cacheKey, decoded);
+    return decoded;
   }
 
   static Future<Map<String, dynamic>> updateProfile(
@@ -158,10 +190,10 @@ class ApiService {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-        final msgFromJson = decoded is Map<String, dynamic>
-          ? decoded['error']?.toString()
-          : null;
-        final message = msgFromJson ?? (raw.isNotEmpty ? raw : 'Could not update profile.');
+      final msgFromJson =
+          decoded is Map<String, dynamic> ? decoded['error']?.toString() : null;
+      final message =
+          msgFromJson ?? (raw.isNotEmpty ? raw : 'Could not update profile.');
       throw ApiException('HTTP ${response.statusCode}: $message');
     }
 
@@ -357,8 +389,9 @@ class ApiService {
 
 class ApiException implements Exception {
   final String message;
+  final int? statusCode;
 
-  const ApiException(this.message);
+  const ApiException(this.message, {this.statusCode});
 
   @override
   String toString() => message;

@@ -8,11 +8,13 @@ class UserViewModel extends ChangeNotifier {
   List<UserModel> _nearbyUsers = [];
   bool _isLoading = false;
   String? _error;
+  int? _errorStatusCode;
 
   UserModel? get user => _user;
   List<UserModel> get nearbyUsers => _nearbyUsers;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  int? get errorStatusCode => _errorStatusCode;
 
   final String? year;
   final String? studyMode;
@@ -29,6 +31,7 @@ class UserViewModel extends ChangeNotifier {
   Future<void> fetchMyProfile({bool forceRefresh = false}) async {
     _setLoading(true);
     _error = null;
+    _errorStatusCode = null;
     try {
       final data = await ApiService.getMyProfile(forceRefresh: forceRefresh);
       _user = UserModel.fromJson(data);
@@ -36,6 +39,7 @@ class UserViewModel extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _error = e is ApiException ? e.message : 'Failed to load profile';
+      _errorStatusCode = e is ApiException ? e.statusCode : null;
       _isLoading = false;
       notifyListeners();
     }
@@ -44,6 +48,7 @@ class UserViewModel extends ChangeNotifier {
   Future<bool> updateProfile(Map<String, dynamic> data) async {
     _setLoading(true);
     _error = null;
+    _errorStatusCode = null;
     try {
       await ApiService.updateProfile(data);
       final persisted = await ApiService.getMyProfile(forceRefresh: true);
