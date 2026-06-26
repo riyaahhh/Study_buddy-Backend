@@ -106,14 +106,32 @@ class _ProfileScreenState extends State<ProfileScreen>
 
           final user = vm.user;
           if (user == null) {
+            final isUnauthorized = vm.errorStatusCode == 401;
             return AppEmptyState(
               icon: Icons.person_outline_rounded,
               title: vm.errorStatusCode == 404
                   ? 'Profile not found'
                   : 'Unable to load profile',
-              subtitle: vm.error ?? 'Check your connection and try again.',
-              buttonLabel: 'Retry',
-              onButton: () => vm.fetchMyProfile(forceRefresh: true),
+              subtitle: isUnauthorized
+                  ? 'Your session has expired. Please sign in again.'
+                  : (vm.error ?? 'Check your connection and try again.'),
+              buttonLabel: isUnauthorized ? 'Log In' : 'Retry',
+              onButton: () {
+                if (isUnauthorized) {
+                  // Direct logout
+                  context.read<AuthViewModel>().logout().then((_) {
+                    if (mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  });
+                } else {
+                  vm.fetchMyProfile(forceRefresh: true);
+                }
+              },
             );
           }
 
