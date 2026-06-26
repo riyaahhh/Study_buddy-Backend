@@ -522,7 +522,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                                 builder: (_) => const FocusTimerScreen(),
                               ),
                             ),
-                          ),
+                         ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
